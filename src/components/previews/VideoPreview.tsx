@@ -33,11 +33,9 @@ const VideoPlayer: FC<{
   width?: number
   height?: number
   thumbnail: string
-  subtitle?: string // allow it to be empty or undefined
   isFlv: boolean
   mpegts: any
-}> = ({ videoName, videoUrl, width, height, thumbnail, subtitle, isFlv, mpegts }) => {
-
+}> = ({ videoName, videoUrl, width, height, thumbnail, isFlv, mpegts }) => {
   useEffect(() => {
     if (isFlv && mpegts) {
       const video = document.getElementById('plyr') as HTMLVideoElement | null
@@ -48,16 +46,12 @@ const VideoPlayer: FC<{
     }
   }, [videoUrl, isFlv, mpegts])
 
-  const plyrTracks = subtitle
-    ? [{ kind: 'captions', label: videoName, src: subtitle, default: true }]
-    : []
-
   const plyrSource = {
     type: 'video',
     title: videoName,
     poster: thumbnail,
-    sources: !isFlv ? [{ src: videoUrl }] : [],
-    tracks: plyrTracks,
+    // ✅ no subtitle track
+    tracks: [],
   }
 
   const plyrOptions = {
@@ -65,9 +59,12 @@ const VideoPlayer: FC<{
     fullscreen: { iosNative: true },
   }
 
+  if (!isFlv) {
+    plyrSource['sources'] = [{ src: videoUrl }]
+  }
+
   return <Plyr id="plyr" source={plyrSource as any} options={plyrOptions as any} />
 }
-
 
 const VideoPreview: FC<{ file: OdFileObject }> = ({ file }) => {
   const { asPath } = useRouter()
@@ -76,14 +73,12 @@ const VideoPreview: FC<{ file: OdFileObject }> = ({ file }) => {
 
   const [menuOpen, setMenuOpen] = useState(false)
 
-  // OneDrive generates thumbnails for its video files, we pick the thumbnail with the highest resolution
   const thumbnail = `/api/thumbnail?path=${asPath}&size=large${hashedToken ? `&odpt=${hashedToken}` : ''}`
 
-  // We assume subtitle files are beside the video with the same name, only webvtt '.vtt' files are supported
-  const vtt = `${asPath.substring(0, asPath.lastIndexOf('.'))}.vtt`
-  const subtitle = `/api/raw?path=${vtt}${hashedToken ? `&odpt=${hashedToken}` : ''}`
+  // ✅ completely remove subtitle logic
+  // const vtt = ...
+  // const subtitle = ...
 
-  // We also format the raw video file for the in-browser player as well as all other players
   const videoUrl = `/api/raw?path=${asPath}${hashedToken ? `&odpt=${hashedToken}` : ''}`
 
   const isFlv = getExtension(file.name) === 'flv'
@@ -112,7 +107,6 @@ const VideoPreview: FC<{ file: OdFileObject }> = ({ file }) => {
             width={file.video?.width}
             height={file.video?.height}
             thumbnail={thumbnail}
-            subtitle={subtitle}
             isFlv={isFlv}
             mpegts={mpegts}
           />
