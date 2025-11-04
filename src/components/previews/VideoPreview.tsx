@@ -33,51 +33,41 @@ const VideoPlayer: FC<{
   width?: number
   height?: number
   thumbnail: string
-  subtitle: string
+  subtitle?: string // allow it to be empty or undefined
   isFlv: boolean
   mpegts: any
 }> = ({ videoName, videoUrl, width, height, thumbnail, subtitle, isFlv, mpegts }) => {
+
   useEffect(() => {
-    // Really really hacky way to inject subtitles as file blobs into the video element
-    axios
-      .get(subtitle, { responseType: 'blob' })
-      .then(resp => {
-        const track = document.querySelector('track')
-        track?.setAttribute('src', URL.createObjectURL(resp.data))
-      })
-      .catch(() => {
-        console.log('Could not load subtitle.')
-      })
-
-    if (isFlv) {
-      const loadFlv = () => {
-        // Really hacky way to get the exposed video element from Plyr
-        const video = document.getElementById('plyr')
-        const flv = mpegts.createPlayer({ url: videoUrl, type: 'flv' })
-        flv.attachMediaElement(video)
-        flv.load()
-      }
-      loadFlv()
+    if (isFlv && mpegts) {
+      const video = document.getElementById('plyr') as HTMLVideoElement | null
+      if (!video) return
+      const flv = mpegts.createPlayer({ url: videoUrl, type: 'flv' })
+      flv.attachMediaElement(video)
+      flv.load()
     }
-  }, [videoUrl, isFlv, mpegts, subtitle])
+  }, [videoUrl, isFlv, mpegts])
 
-  // Common plyr configs, including the video source and plyr options
+  const plyrTracks = subtitle
+    ? [{ kind: 'captions', label: videoName, src: subtitle, default: true }]
+    : []
+
   const plyrSource = {
     type: 'video',
     title: videoName,
     poster: thumbnail,
-    tracks: [{ kind: 'captions', label: videoName, src: '', default: true }],
+    sources: !isFlv ? [{ src: videoUrl }] : [],
+    tracks: plyrTracks,
   }
+
   const plyrOptions = {
     ratio: `${width ?? 16}:${height ?? 9}`,
     fullscreen: { iosNative: true },
   }
-  if (!isFlv) {
-    // If the video is not in flv format, we can use the native plyr and add sources directly with the video URL
-    plyrSource['sources'] = [{ src: videoUrl }]
-  }
+
   return <Plyr id="plyr" source={plyrSource as any} options={plyrOptions as any} />
 }
+
 
 const VideoPreview: FC<{ file: OdFileObject }> = ({ file }) => {
   const { asPath } = useRouter()
